@@ -1,0 +1,72 @@
+# ---------- 🔐 密钥与本地配置（绝不入库）----------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# ---------- 📕 参考资料（含第三方版权 + 探测脚本明文密钥）----------
+_ref/
+*.pdf
+
+# ---------- 🐍 Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+# 调试版构建（带控制台，用 AYUAN_BUILD_CONSOLE=1 打出来的）
+dist-debug/
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---------- 🎛️ 模型文件（体积大，运行时单独下载）----------
+models/*
+!models/.gitkeep
+!models/README.md
+# 唤醒词定义是配置而非模型体积，需要入库
+!models/keywords*.txt
+
+# ---------- 💾 运行产物 ----------
+data/
+temp/
+logs/
+*.log
+recordings/
+cache/
+
+# ---------- 🔉 散落的音频文件 ----------
+# README 承诺「录音不落盘」，但调试时随手存个 test.wav 不该被提交
+*.wav
+*.mp3
+*.flac
+*.pcm
+*.m4a
+*.ogg
+
+# ---------- 🛠️ IDE / 编辑器 ----------
+# 调试配置属于团队共享资产，需要入库；个人偏好设置仍然忽略
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---------- 🪟 Windows ----------
+desktop.ini
