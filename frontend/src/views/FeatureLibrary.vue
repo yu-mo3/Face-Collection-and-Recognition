@@ -160,7 +160,7 @@ onMounted(() => {
       <div class="card-head">
         <div>
           <div class="card-title">
-            <AppIcon name="database" :size="17" />
+            <AppIcon name="database" :size="18" />
             特征库
           </div>
           <p class="card-desc">
@@ -318,7 +318,7 @@ onMounted(() => {
 }
 
 .search {
-  width: 260px;
+  width: 300px;
   max-width: 100%;
 }
 
@@ -334,7 +334,7 @@ onMounted(() => {
   border: none;
   background: none;
   color: var(--brand);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .link-btn:hover {
@@ -370,7 +370,7 @@ onMounted(() => {
   border-radius: 50%;
   background: var(--brand-soft);
   color: var(--brand-dark);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
   flex: none;
 }
@@ -398,6 +398,6 @@ onMounted(() => {
   padding-top: 12px;
   border-top: 1px solid var(--line);
   color: var(--faint);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 </style>

@@ -165,7 +165,7 @@ function bboxText(bbox) {
 /* 数字用 19px 等宽，让 1 和 10 的宽度差异不影响对齐 */
 .stat-num {
   font-family: 'Cascadia Code', Consolas, Monaco, monospace;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 600;
   line-height: 1.1;
   color: var(--ink);
@@ -183,7 +183,7 @@ function bboxText(bbox) {
 
 .stat-label {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .summary-divider {
@@ -195,13 +195,13 @@ function bboxText(bbox) {
 
 .summary-note {
   color: var(--faint);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 /* ---------- 未识别人脸 ---------- */
 .unmatched {
   color: var(--faint);
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 /* ---------- 相似度条 ---------- */
@@ -215,7 +215,7 @@ function bboxText(bbox) {
   position: relative;
   flex: 1;
   height: 4px;
-  min-width: 40px;
+  min-width: 48px;
   border-radius: 999px;
   background: #eef0f4;
   overflow: hidden;
@@ -241,7 +241,7 @@ function bboxText(bbox) {
 .sim-value {
   min-width: 46px;
   font-family: 'Cascadia Code', Consolas, Monaco, monospace;
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: right;
 }
 

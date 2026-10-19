@@ -346,7 +346,7 @@ onBeforeUnmount(() => {
       <div class="card-head">
         <div>
           <div class="card-title">
-            <AppIcon name="camera" :size="17" />
+            <AppIcon name="camera" :size="18" />
             摄像头取景
           </div>
           <p class="card-desc">
@@ -534,10 +534,10 @@ onBeforeUnmount(() => {
     </section>
 
     <!-- ==================== 右：结果 ==================== -->
-    <section class="card">
+    <section class="card card-stretch">
       <div class="card-head">
         <div class="card-title">
-          <AppIcon name="scan-face" :size="17" />
+          <AppIcon name="scan-face" :size="18" />
           识别结果
         </div>
         <span v-if="elapsedMs > 0" class="badge badge-neutral">
@@ -546,18 +546,21 @@ onBeforeUnmount(() => {
         </span>
       </div>
 
-      <div v-if="busy && !result" class="loading">
-        <span class="spinner" aria-hidden="true"></span>
-        正在检测并比对特征库……
-      </div>
+      <!-- card-fill：占满头部以下空间，让空态/加载态垂直居中 -->
+      <div class="card-fill">
+        <div v-if="busy && !result" class="loading">
+          <span class="spinner" aria-hidden="true"></span>
+          正在检测并比对特征库……
+        </div>
 
-      <div v-else-if="!result" class="empty">
-        <span class="empty-mark"><AppIcon name="empty-target" :size="22" /></span>
-        <p class="empty-title">等待识别</p>
-        <p class="hint">开启摄像头后点「拍照并识别」，或直接开启「连续识别」</p>
-      </div>
+        <div v-else-if="!result" class="empty">
+          <span class="empty-mark"><AppIcon name="empty-target" :size="22" /></span>
+          <p class="empty-title">等待识别</p>
+          <p class="hint">开启摄像头后点「拍照并识别」，或直接开启「连续识别」</p>
+        </div>
 
-      <ResultTable v-else :results="result.results" :threshold="threshold" />
+        <ResultTable v-else :results="result.results" :threshold="threshold" />
+      </div>
     </section>
   </div>
 </template>
@@ -643,13 +646,13 @@ onBeforeUnmount(() => {
 
 .mask-title {
   color: #dbe3ef;
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 550;
 }
 
 .mask-sub {
   color: #7f8ea8;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 /* 识别中角标 */
@@ -664,7 +667,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.82);
   color: #e2e8f0;
-  font-size: 12px;
+  font-size: 12.5px;
   backdrop-filter: blur(4px);
 }
 
@@ -695,7 +698,7 @@ onBeforeUnmount(() => {
   padding: 1px 7px;
   border-radius: 4px;
   color: #fff;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.7;
   white-space: nowrap;
@@ -768,7 +771,7 @@ onBeforeUnmount(() => {
   border: none;
   background: none;
   color: var(--brand);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .link-btn:hover {

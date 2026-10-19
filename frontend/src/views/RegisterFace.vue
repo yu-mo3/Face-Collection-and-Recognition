@@ -184,7 +184,7 @@ onBeforeUnmount(revokePreview)
       <div class="card-head">
         <div>
           <div class="card-title">
-            <AppIcon name="user-plus" :size="17" />
+            <AppIcon name="user-plus" :size="18" />
             录入人脸
           </div>
           <p class="card-desc">
@@ -288,7 +288,7 @@ onBeforeUnmount(revokePreview)
     <section class="card">
       <div class="card-head">
         <div class="card-title">
-          <AppIcon name="info" :size="17" />
+          <AppIcon name="info" :size="18" />
           录入须知
         </div>
       </div>
@@ -396,7 +396,7 @@ onBeforeUnmount(revokePreview)
 
 .dropzone-sub {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 /* ---------- 已选文件 ---------- */
@@ -411,8 +411,8 @@ onBeforeUnmount(revokePreview)
 }
 
 .thumb {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   object-fit: cover;
@@ -429,14 +429,14 @@ onBeforeUnmount(revokePreview)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 13.5px;
+  font-weight: 600;
 }
 
 .file-meta {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 /* ---------- 按钮与提示 ---------- */
@@ -457,7 +457,7 @@ onBeforeUnmount(revokePreview)
   border: none;
   background: none;
   color: var(--brand);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .link-btn:hover {
@@ -493,13 +493,13 @@ onBeforeUnmount(revokePreview)
   border-radius: 50%;
   background: var(--brand-soft);
   color: var(--brand-dark);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   flex: none;
 }
 
 .tip-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -507,7 +507,7 @@ onBeforeUnmount(revokePreview)
 .tip-text {
   margin-top: 1px;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
 }
 

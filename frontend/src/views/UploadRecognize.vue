@@ -244,7 +244,7 @@ onBeforeUnmount(revokePreview)
       <div class="card-head">
         <div>
           <div class="card-title">
-            <AppIcon name="upload" :size="17" />
+            <AppIcon name="upload" :size="18" />
             上传图片
           </div>
           <p class="card-desc">
@@ -354,10 +354,10 @@ onBeforeUnmount(revokePreview)
     </section>
 
     <!-- ==================== 右：预览与结果 ==================== -->
-    <section class="card">
+    <section class="card card-stretch">
       <div class="card-head">
         <div class="card-title">
-          <AppIcon name="scan-face" :size="17" />
+          <AppIcon name="scan-face" :size="18" />
           识别结果
         </div>
         <span v-if="elapsedMs > 0" class="badge badge-neutral">
@@ -366,41 +366,44 @@ onBeforeUnmount(revokePreview)
         </span>
       </div>
 
-      <!-- 预览 + 人脸框叠加 -->
-      <div v-if="previewUrl" class="preview">
-        <div class="preview-stage">
-          <img :src="previewUrl" alt="待识别图片预览" @load="onImageLoad" />
+      <!-- card-fill：占满头部以下的空间，让空态/加载态在其中垂直居中 -->
+      <div class="card-fill">
+        <!-- 预览 + 人脸框叠加 -->
+        <div v-if="previewUrl" class="preview">
+          <div class="preview-stage">
+            <img :src="previewUrl" alt="待识别图片预览" @load="onImageLoad" />
 
-          <template v-if="result">
-            <template v-for="(item, index) in result.results" :key="index">
-              <div
-                v-if="item.bbox"
-                class="face-box"
-                :class="[item.matched ? 'hit' : 'miss', { 'label-inside': labelInside(item.bbox) }]"
-                :style="boxStyle(item.bbox)"
-              >
-                <span class="face-box-label">
-                  {{ item.matched ? item.name : 'Unknown' }}
-                  <em v-if="item.similarity !== null">{{ item.similarity.toFixed(2) }}</em>
-                </span>
-              </div>
+            <template v-if="result">
+              <template v-for="(item, index) in result.results" :key="index">
+                <div
+                  v-if="item.bbox"
+                  class="face-box"
+                  :class="[item.matched ? 'hit' : 'miss', { 'label-inside': labelInside(item.bbox) }]"
+                  :style="boxStyle(item.bbox)"
+                >
+                  <span class="face-box-label">
+                    {{ item.matched ? item.name : 'Unknown' }}
+                    <em v-if="item.similarity !== null">{{ item.similarity.toFixed(2) }}</em>
+                  </span>
+                </div>
+              </template>
             </template>
-          </template>
+          </div>
         </div>
-      </div>
 
-      <div v-if="loading" class="loading">
-        <span class="spinner" aria-hidden="true"></span>
-        正在检测并比对特征库……
-      </div>
+        <div v-if="loading" class="loading">
+          <span class="spinner" aria-hidden="true"></span>
+          正在检测并比对特征库……
+        </div>
 
-      <div v-else-if="!result" class="empty">
-        <span class="empty-mark"><AppIcon name="empty-target" :size="22" /></span>
-        <p class="empty-title">{{ file ? '图片已就绪' : '还没有选择图片' }}</p>
-        <p class="hint">{{ file ? '点击左侧「开始识别」查看结果' : '识别结果会显示在这里' }}</p>
-      </div>
+        <div v-else-if="!result" class="empty">
+          <span class="empty-mark"><AppIcon name="empty-target" :size="22" /></span>
+          <p class="empty-title">{{ file ? '图片已就绪' : '还没有选择图片' }}</p>
+          <p class="hint">{{ file ? '点击左侧「开始识别」查看结果' : '识别结果会显示在这里' }}</p>
+        </div>
 
-      <ResultTable v-else :results="result.results" :threshold="threshold" />
+        <ResultTable v-else :results="result.results" :threshold="threshold" />
+      </div>
     </section>
   </div>
 </template>
@@ -456,7 +459,7 @@ onBeforeUnmount(revokePreview)
 
 .dropzone-sub {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 /* ---------- 已选文件卡片 ---------- */
@@ -472,8 +475,8 @@ onBeforeUnmount(revokePreview)
 
 /* 方形缩略图：object-fit: cover 保证不同比例都不变形 */
 .thumb {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   border-radius: var(--r-sm);
   border: 1px solid var(--line);
   object-fit: cover;
@@ -490,8 +493,8 @@ onBeforeUnmount(revokePreview)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--ink);
 }
 
@@ -501,7 +504,7 @@ onBeforeUnmount(revokePreview)
   gap: 7px;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 /* 元信息之间的小圆点分隔，比竖线更轻 */
@@ -519,7 +522,7 @@ onBeforeUnmount(revokePreview)
 .file-usage {
   margin-top: 4px;
   color: var(--faint);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 /* ---------- 阈值与按钮 ---------- */
@@ -536,7 +539,7 @@ onBeforeUnmount(revokePreview)
   border: none;
   background: none;
   color: var(--brand);
-  font-size: 12px;
+  font-size: 12.5px;
   text-decoration: none;
   border-bottom: 1px solid transparent;
 }
@@ -602,7 +605,7 @@ onBeforeUnmount(revokePreview)
   padding: 1px 7px;
   border-radius: 4px;
   color: #fff;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.7;
   white-space: nowrap;
