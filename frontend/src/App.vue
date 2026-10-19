@@ -1,19 +1,26 @@
 <script setup>
 /**
- * App.vue —— 应用外壳（页面骨架）
+ * App.vue —— 应用外壳
  * ---------------------------------------------------------------------------
- * 本文件只负责「壳」的三件事，业务逻辑全部下放到 src/views/ 的各模块里：
- *   1. 顶部品牌栏：标题 + 后端接口地址说明，让使用者一眼知道连的是哪个服务；
- *   2. 模块导航：每个标签对应一个业务模块（图片识别 / 摄像头识别 / 人脸录入 /
- *      特征库管理），用 activeTab 记录当前选中项；
- *   3. 内容区：根据 activeTab 渲染对应视图组件。
+ * 只做三件事，业务逻辑全部在 src/views/ 各模块里：
+ *   1. 顶部标识区：品牌图标 + 系统名 + 一行技术栈说明 + 右侧能力标签；
+ *   2. 模块导航：分段式标签栏，activeTab 记录当前模块；
+ *   3. 内容区：按 activeTab 渲染对应视图组件。
  *
- * 说明：四个业务模块已全部接入（图片识别 / 摄像头识别 / 人脸录入 / 特征库），
- * 本组件只做导航与挂载，不含任何业务逻辑。
+ * 本次 UI 优化的三处结构性调整：
+ *   - 去掉了内容区顶部重复的"模块名 + 说明"标题行：
+ *     标签栏已经显示了模块名，每张卡片自己也有标题，
+ *     三层重复信息会把页面压得很挤。模块说明改挂到标签的 title 上（悬停可见）。
+ *   - 图标由 emoji 换成 AppIcon 内联 SVG，尺寸/颜色/描边统一。
+ *   - 标签与 URL hash 同步（#upload / #camera / #register / #features），
+ *     刷新、分享链接都能停在同一个模块；用 replaceState 写入，
+ *     不污染浏览器前进后退历史。
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-// 业务视图组件：每个模块一个文件，互不耦合
+import AppIcon from './components/AppIcon.vue'
+
+// 业务视图组件：一个模块一个文件，互不引用
 import UploadRecognize from './views/UploadRecognize.vue'
 import CameraRecognize from './views/CameraRecognize.vue'
 import RegisterFace from './views/RegisterFace.vue'
@@ -21,23 +28,21 @@ import FeatureLibrary from './views/FeatureLibrary.vue'
 
 /**
  * 模块清单
- * key      —— 唯一标识，用于 activeTab 与组件的匹配
- * label    —— 导航栏显示文字
- * icon     —— 导航栏图标（emoji，免去引入图标库）
- * summary  —— 一句话说明，展示在内容区顶部
+ * key     —— 唯一标识，同时用作 URL hash
+ * label   —— 导航文字
+ * icon    —— AppIcon 的图标名
+ * summary —— 一句话说明，只作为标签的 title 提示，不再单独占一行
  */
 const tabs = [
-  { key: 'upload', label: '图片识别', icon: '🖼️', summary: '上传本地图片（≤5MB），识别图中每一张人脸' },
-  { key: 'camera', label: '摄像头识别', icon: '📷', summary: '调用摄像头抓帧，Base64 上传实时识别' },
-  { key: 'register', label: '人脸录入', icon: '👤', summary: '上传人脸图片 + 姓名，写入特征库' },
-  { key: 'features', label: '特征库', icon: '🗂️', summary: '查看已录入人员，支持按姓名删除' },
+  { key: 'upload', label: '图片识别', icon: 'image', summary: '上传本地图片（≤5MB），识别图中每一张人脸' },
+  { key: 'camera', label: '摄像头识别', icon: 'camera', summary: '调用摄像头抓帧，Base64 上传实时识别' },
+  { key: 'register', label: '人脸录入', icon: 'user-plus', summary: '上传人脸图片 + 姓名，写入特征库' },
+  { key: 'features', label: '特征库', icon: 'database', summary: '查看已录入人员，支持按姓名删除' },
 ]
 
 /**
- * key → 视图组件的映射表。
- * 用映射表 + <component :is> 而不是 v-if 链：
- *   新增模块只需在 tabs 和 viewMap 各加一行，模板不用动。
- * 尚未接入的模块查不到组件，页面会渲染「即将接入」占位卡片。
+ * key → 视图组件。用映射表 + <component :is> 而不是 v-if 链：
+ * 新增模块只需在 tabs 和 viewMap 各加一行，模板不用动。
  */
 const viewMap = {
   upload: UploadRecognize,
@@ -46,57 +51,91 @@ const viewMap = {
   features: FeatureLibrary,
 }
 
-// 当前选中的模块，默认第一个「图片识别」
-const activeTab = ref('upload')
+/** 合法模块 key 集合，用于校验 hash */
+const validKeys = new Set(tabs.map((tab) => tab.key))
 
-/** 当前模块的元信息（标题、说明），用于内容区顶部的一行介绍 */
-const activeMeta = computed(() => tabs.find((tab) => tab.key === activeTab.value) || tabs[0])
+/**
+ * 从 URL hash 解析初始模块。
+ * 例如访问 /#camera 时直接打开摄像头模块；hash 非法则回落到第一个模块。
+ * @returns {string}
+ */
+function readTabFromHash() {
+  const raw = window.location.hash.replace(/^#\/?/, '').trim()
+  return validKeys.has(raw) ? raw : tabs[0].key
+}
 
-/** 当前模块对应的视图组件，未接入时为 null */
+// 当前选中的模块
+const activeTab = ref(readTabFromHash())
+
+/** 当前模块对应的视图组件 */
 const activeView = computed(() => viewMap[activeTab.value] || null)
 
 /**
- * 切换模块
- * @param {string} key 目标模块的 key
+ * 切换模块并同步 hash。
+ * @param {string} key 目标模块 key
  */
 function switchTab(key) {
-  if (activeTab.value !== key) {
-    activeTab.value = key
+  if (!validKeys.has(key) || activeTab.value === key) return
+  activeTab.value = key
+  // 用 replaceState 而不是给 location.hash 赋值：后者每切一次都压一条历史记录，
+  // 用户点后退会逐个倒着退模块，体验很差
+  if (window.location.hash !== `#${key}`) {
+    window.history.replaceState(null, '', `#${key}`)
   }
+}
+
+/**
+ * 监听外部 hash 变化（手动改地址栏、浏览器前进后退）。
+ * 内部切换用 replaceState 不会触发该事件，所以不会和 switchTab 打架。
+ */
+function onHashChange() {
+  const next = readTabFromHash()
+  if (next !== activeTab.value) activeTab.value = next
 }
 
 /**
  * 「人脸录入」模块的事件回调。
- * RegisterFace 会用 registered 事件广播两件事：
- *   - payload 为对象：录入成功（附 { recordId, name }），这里只做通知，不切页，
- *     否则用户还没来得及看清成功提示就被跳走了；
- *   - payload 为 null：用户点了「去特征库查看」，此时才切换导航到特征库。
- * @param {{recordId:number,name:string}|null} payload
+ * RegisterFace 用 registered 事件广播两件事：
+ *   - payload 为对象：录入成功，仅通知，不切页（否则用户看不到成功提示就被跳走）；
+ *   - payload 为 null：用户点了「去特征库查看」，此时切到特征库。
+ * @param {{recordId:number|null,name:string}|null} payload
  */
 function onRegistered(payload) {
-  if (payload === null) {
-    switchTab('features')
-  }
+  if (payload === null) switchTab('features')
 }
+
+onMounted(() => {
+  // 首次进入时把默认模块也写进 hash，保证地址栏状态与界面一致
+  if (window.location.hash !== `#${activeTab.value}`) {
+    window.history.replaceState(null, '', `#${activeTab.value}`)
+  }
+  window.addEventListener('hashchange', onHashChange)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('hashchange', onHashChange)
+})
 </script>
 
 <template>
   <div class="app-shell">
-    <!-- ================= 顶部品牌栏 ================= -->
-    <header class="brand">
-      <div class="brand-left">
-        <div class="brand-logo">人脸</div>
-        <div>
-          <h1 class="page-title">人脸采集与识别系统</h1>
-          <p class="page-subtitle">
-            Vue3 + Vite 前端 · 对接 FastAPI 后端
-            <code>/api</code> 路由 · 单张图片上传上限 <strong>5MB</strong>
+    <!-- ================= 标识区 ================= -->
+    <header class="app-head">
+      <div class="identity">
+        <div class="logo">
+          <AppIcon name="scan-face" :size="22" :stroke-width="1.7" />
+        </div>
+        <div class="identity-text">
+          <h1 class="app-title">人脸采集与识别系统</h1>
+          <p class="app-subtitle">
+            Vue3 + Vite 前端 · FastAPI <code>/api</code> 接口 · 单张图片上限 5MB
           </p>
         </div>
       </div>
-      <div class="brand-meta">
-        <span class="badge badge-neutral">Haar 检测</span>
-        <span class="badge badge-neutral">FaceNet 特征比对</span>
+
+      <div class="head-meta">
+        <span class="meta-chip"><i class="dot dot-brand"></i>Haar 人脸检测</span>
+        <span class="meta-chip"><i class="dot dot-ok"></i>FaceNet 512 维特征</span>
       </div>
     </header>
 
@@ -108,161 +147,228 @@ function onRegistered(payload) {
         type="button"
         class="tab"
         :class="{ active: activeTab === tab.key }"
+        :title="tab.summary"
         :aria-current="activeTab === tab.key ? 'page' : undefined"
         @click="switchTab(tab.key)"
       >
-        <span class="tab-icon" aria-hidden="true">{{ tab.icon }}</span>
-        {{ tab.label }}
+        <AppIcon :name="tab.icon" :size="16" :stroke-width="1.9" />
+        <span class="tab-label">{{ tab.label }}</span>
       </button>
     </nav>
 
     <!-- ================= 内容区 ================= -->
     <main class="content">
-      <!-- 当前模块标题与一句话说明，切换标签时同步变化 -->
-      <div class="module-intro">
-        <h2 class="module-title">
-          <span aria-hidden="true">{{ activeMeta.icon }}</span>
-          {{ activeMeta.label }}
-        </h2>
-        <p class="module-summary">{{ activeMeta.summary }}</p>
-      </div>
-
       <!--
-        业务视图挂载点。
-        :key="activeTab" 保证切换模块时组件被销毁重建：
+        :key="activeTab" 保证切换模块时组件销毁重建：
         摄像头模块必须在离开时释放 MediaStream，重建语义最不容易出错。
       -->
       <component :is="activeView" v-if="activeView" :key="activeTab" @registered="onRegistered" />
 
-      <!-- 尚未接入的模块占位 -->
+      <!-- 未映射模块的防御性兜底 -->
       <section v-else class="card">
         <div class="empty">
-          <span class="empty-mark" aria-hidden="true">🚧</span>
-          该模块正在接入中
+          <span class="empty-mark"><AppIcon name="empty-target" :size="22" /></span>
+          <p class="empty-title">该模块正在接入中</p>
         </div>
       </section>
     </main>
 
     <footer class="foot">
-      人脸检测识别系统（实训版）· 后端 <code>app.py</code> 提供 /api 接口，前端仅通过 HTTP 调用，不修改后端逻辑
+      后端由 <code>app.py</code> 提供 /api 接口，前端仅通过 HTTP 调用
     </footer>
   </div>
 </template>
 
 <style scoped>
-/* ================= 品牌栏 ================= */
-.brand {
+/* ================= 标识区 ================= */
+.app-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
-.brand-left {
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(150deg, #5b54ea, #7c3aed);
+  color: #fff;
+  flex: none;
+  box-shadow: 0 8px 18px -12px rgba(79, 70, 229, 0.95);
+}
+
+.identity-text {
+  min-width: 0;
+}
+
+.app-title {
+  font-size: 19px;
+  letter-spacing: -0.015em;
+}
+
+.app-subtitle {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* 能力标签：纯文字 + 小圆点，不用胶囊包裹，降低视觉噪音 */
+.head-meta {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-wrap: wrap;
 }
 
-/* 左侧方形标识块：纯 CSS 渐变，避免额外图片资源 */
-.brand-logo {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, #4361ee, #7c3aed);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  box-shadow: 0 8px 20px -10px rgba(67, 97, 238, 0.9);
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   flex: none;
 }
 
-.brand-meta {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding-top: 4px;
+.dot-brand {
+  background: var(--brand);
+}
+
+.dot-ok {
+  background: #16a34a;
 }
 
 /* ================= 模块导航 ================= */
 .tabbar {
   display: flex;
-  gap: 4px;
-  padding: 5px;
-  margin-bottom: 18px;
-  background: rgba(255, 255, 255, 0.72);
+  gap: 2px;
+  padding: 4px;
+  margin-bottom: 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
   overflow-x: auto;
-  /* iOS 惯性滚动，窄屏横向滚动更顺滑 */
   -webkit-overflow-scrolling: touch;
+  /* 隐藏横向滚动条，窄屏时靠滑动切换 */
+  scrollbar-width: none;
+}
+
+.tabbar::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 38px;
-  padding: 0 16px;
-  border: none;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
-  color: var(--ink-soft);
+  color: var(--muted);
   font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--t), color var(--t), border-color var(--t), box-shadow var(--t);
 }
 
-.tab:hover {
-  background: #eef2ff;
-  color: var(--brand-dark);
+.tab:hover:not(.active) {
+  background: #f4f5f8;
+  color: var(--ink-soft);
 }
 
+/* 选中态：白底 + 细描边 + 轻投影，比整块实心色更克制，
+   也让主色留给页面里的主按钮 */
 .tab.active {
-  background: var(--brand);
-  color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(67, 97, 238, 0.95);
+  border-color: var(--line);
+  background: #fff;
+  color: var(--brand-dark);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 10px -8px rgba(16, 24, 40, 0.2);
 }
 
-.tab-icon {
-  font-size: 15px;
-  line-height: 1;
-}
-
-/* ================= 内容区模块介绍 ================= */
-.module-intro {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-  padding-left: 2px;
-}
-
-.module-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 16px;
-}
-
-.module-summary {
-  color: var(--muted);
-  font-size: 12.5px;
+.tab.active .icon {
+  color: var(--brand);
 }
 
 /* ================= 页脚 ================= */
 .foot {
-  margin-top: 28px;
-  text-align: center;
-  color: var(--muted);
+  margin-top: 26px;
+  color: var(--faint);
   font-size: 12px;
+  text-align: center;
+}
+
+/* 窄屏：能力标签换行到标题下方，避免挤压标题 */
+@media (max-width: 720px) {
+  .app-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/*
+  手机宽度下四个标签必须全部可见：
+  默认的固定内边距会让总宽超出容器，触发横向滚动，
+  结果是第 4 个标签被裁在可视区外（看不出还有一页）。
+  这里改为等分宽度 + 收紧内边距和字号，保证一行放下四个。
+*/
+@media (max-width: 640px) {
+  .tabbar {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .tab {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 12.5px;
+    gap: 5px;
+  }
+
+  .tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/*
+  超窄屏（<=460px）：四个标签等分后每个只有 80~97px，
+  而"摄像头识别"有 5 个汉字，图标再占 21px 就会被省略号截断。
+  图标在这里纯属装饰，标签文字本身含义明确，所以窄屏直接隐藏图标换回文字宽度。
+*/
+@media (max-width: 460px) {
+  .tab {
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
+  .tab .icon {
+    display: none;
+  }
 }
 </style>
