@@ -82,6 +82,7 @@ frontend/
     │   ├── client.js           # axios 实例、错误归一化、5MB 校验工具
     │   └── face.js             # 5 个接口封装 + 响应归一化（bbox / similarity）
     ├── components/
+    │   ├── AppIcon.vue         # 内联 SVG 图标集（替代 emoji，统一尺寸与颜色）
     │   └── ResultTable.vue     # 识别结果表（两个识别模块共用）
     └── views/
         ├── UploadRecognize.vue # ① 图片上传识别
@@ -191,7 +192,64 @@ frontend/
 
 ---
 
-## 7. 构建与部署
+## 7. 界面与交互设计
+
+### 7.1 设计令牌
+
+颜色、圆角、阴影、动效时长全部收敛在 `src/assets/main.css` 的 `:root` 里，改主题只动一处：
+
+| 令牌 | 值 | 用途 |
+| --- | --- | --- |
+| `--brand` | `#4f46e5` | 主色（主按钮、选中态、滑块、图标强调） |
+| `--ink` / `--ink-soft` / `--muted` / `--faint` | 四级灰阶 | 正文 / 次要文字 / 说明 / 占位，只用这四档 |
+| `--ok` `--warn` `--err` | 绿 / 琥珀 / 红 | 只用于识别结果与提示，不做装饰 |
+| `--r-lg` `--r-md` `--r-sm` | 14 / 10 / 8px | 卡片 / 控件 / 小元素，只有三档圆角 |
+
+配色上刻意去掉了大面积紫粉渐变，改为近乎中性的浅灰蓝底 + 两团极淡光晕，
+把注意力留给内容本身；卡片用极轻投影 + 淡描边分层，而不是重阴影。
+
+### 7.2 图标
+
+`components/AppIcon.vue` 内置一组 24×24、线性描边、`stroke="currentColor"` 的图标：
+
+- 颜色继承父级 `color`，所以在卡片标题里自动变主色、在危险按钮里自动变红；
+- 尺寸由 `size` 控制，视觉重量一致，不再出现 emoji 大小参差、各系统字形不同的情况；
+- 不引入图标库，不增加依赖与打包体积。
+
+渲染用 `v-html` 输出**本文件内写死的常量标记**（不来自接口或用户输入）。
+
+### 7.3 模块导航与 URL hash
+
+标签与地址栏 hash 双向同步：`#upload`、`#camera`、`#register`、`#features`。
+
+- 刷新页面、分享链接都能停在同一模块；
+- 内部切换用 `history.replaceState` 写入，**不往历史里堆记录**（点后退不会逐个倒着切模块）；
+- 手动改地址栏或浏览器前进后退时由 `hashchange` 监听同步界面。
+
+### 7.4 响应式断点
+
+| 断点 | 变化 |
+| --- | --- |
+| `> 920px` | 左右双栏（操作区 / 结果区） |
+| `≤ 920px` | 双栏堆叠为单列 |
+| `≤ 720px` | 顶部能力标签换到标题下方 |
+| `≤ 640px` | 页面左右留白收紧；标签栏等分宽度、收紧字号 |
+| `≤ 460px` | 隐藏标签栏装饰性图标，把宽度让给"摄像头识别"这类 5 字标签，避免省略号截断 |
+
+表格在窄屏下由 `.table-wrap` 提供横向滚动，不会把卡片撑破。
+实测 390 / 430 / 1440 宽度下 `documentElement.scrollWidth` 均等于视口宽度，无页面级横向溢出。
+
+### 7.5 可访问性
+
+- 全局 `:focus-visible` 焦点环，键盘导航可见、鼠标点击不刺眼；
+- 拖拽上传区支持 `Tab` 聚焦与 `Enter` / `Space` 触发；
+- 图标统一 `aria-hidden="true"`，语义由文字承担；纯图标按钮补 `aria-label`；
+- 加载/错误/成功提示分别带 `role="status"` / `role="alert"`；
+- `prefers-reduced-motion: reduce` 时关闭动效。
+
+---
+
+## 8. 构建与部署
 
 ```bash
 cd frontend
@@ -213,13 +271,13 @@ npm run preview    # 本地预览构建产物
 
 ---
 
-## 8. 常见问题
+## 9. 常见问题
 
 | 现象 | 原因与处理 |
 | --- | --- |
 | 页面提示「无法连接后端服务」 | 后端未启动，或端口不是 8000。检查 `uvicorn` 是否在跑 |
 | 接口 500，日志有 `UnicodeEncodeError: 'gbk' codec` | 启动后端时未设置 `PYTHONUTF8=1` / `PYTHONIOENCODING=utf-8`，见 2.3 |
-| 接口 500，日志有 `sqlite3.ProgrammingError ... same thread` | 后端 `core/db_utils.py` 未包含线程安全修复，见第 9 节 |
+| 接口 500，日志有 `sqlite3.ProgrammingError ... same thread` | 后端 `core/db_utils.py` 未包含线程安全修复，见第 10 节 |
 | 摄像头打不开，提示权限被拒绝 | 点地址栏锁图标 → 摄像头 → 允许；或换 `http://localhost:5173` 访问（非 https 域名不算安全上下文） |
 | 摄像头被占用 | 关闭微信 / 腾讯会议 / 相机等占用设备的程序 |
 | 端口 5173 被占用，Vite 直接报错退出 | 这是刻意的：后端 CORS 白名单只放行 5173，`strictPort: true` 防止静默换端口导致跨域失败。请释放 5173 或同步修改后端 CORS |
@@ -229,11 +287,11 @@ npm run preview    # 本地预览构建产物
 
 ---
 
-## 9. 后端配套改动（重要）
+## 10. 后端配套改动（重要）
 
 按需求「后端不动」，本次**未改动任何业务逻辑**。但联调中发现两个阻塞性缺陷，处理如下：
 
-### 9.1 已修复（1 行）：SQLite 跨线程使用
+### 10.1 已修复（1 行）：SQLite 跨线程使用
 
 - **文件**：`core/db_utils.py`
 - **改动**：`sqlite3.connect(db_path)` → `sqlite3.connect(db_path, check_same_thread=False)`
@@ -242,19 +300,22 @@ npm run preview    # 本地预览构建产物
 - **影响范围**：不加这行修复，**全部 5 个接口都返回 500**，前端无法使用任何功能。
 - **为何安全**：每个请求是「取连接 → 一次短事务」，不存在同一连接被并发写的场景。
 
-### 9.2 无需改代码：GBK 控制台编码
+### 10.2 无需改代码：GBK 控制台编码
 
 `print` 里的 emoji 在 GBK 控制台会抛 `UnicodeEncodeError`（见 2.3），
 通过启动时的环境变量规避，不改后端。
 
 ---
 
-## 10. 已验证项
+## 11. 已验证项
 
 | 项目 | 方式 | 结果 |
 | --- | --- | --- |
-| 生产构建 | `vite build` | 通过（79 modules transformed） |
+| 生产构建 | `vite build` | 通过（81 modules transformed） |
 | 开发服务器 | `http://localhost:5173/` | 200，入口与 `/src/main.js` 正常 |
 | 代理 | `http://localhost:5173/api/features` | 200，与直连后端一致 |
 | 5MB 等纯逻辑 | esbuild 打包源码后在 Node 断言 44 项 | 全部通过（含 5MB 边界、Base64 体积、bbox 归一化、`similarity:null` 回归） |
 | 五个接口端到端 | 真实后端 + 样例图片 | 全部通过：upload 命中 0.9653；frame 命中 similarity 1.0；register → 409 重名；delete → 404 不存在；特征库增删还原 |
+| 界面渲染 | Chrome 无头截图 + CDP 驱动交互 | 四个模块的初始/已选文件/识别结果/删除确认/摄像头出画状态截图逐一核对 |
+| hash 路由 | 直接访问 `#camera` / `#features` | 打开即落到对应模块 |
+| 窄屏溢出 | CDP 量 `scrollWidth` 与元素 rect | 390 / 430 / 1440 宽度均无页面级横向溢出；4 个标签在 430px 下右边界 412px，无截断 |
