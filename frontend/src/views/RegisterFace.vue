@@ -6,56 +6,60 @@
  *   multipart 提交：file（人脸图片）+ name（Form 字段，姓名/身份标签）
  *   返回：{ record_id, name }
  *
- * 后端行为（决定了前端要做哪些提示）：
- *   1. 一张图里只录入「面积最大的那张脸」，避免多脸歧义 —— 所以界面要引导用户
- *      使用只有一张正脸的图片；
+ * 后端行为（决定前端提示怎么写）：
+ *   1. 一张图只录入「面积最大的那张脸」，避免多脸歧义 —— 引导用户用单人正脸照；
  *   2. 检测不到人脸 → HTTP 422「未检测到人脸，请更换图片」；
  *   3. 同名记录已存在 → HTTP 409「已存在特征记录，请先删除再重录」，
- *      即姓名在特征库里是唯一键，重复上传同名图片不会产生第二条记录；
+ *      即姓名在特征库里是唯一键；
  *   4. 姓名会 trim 后入库，前端也先 trim，避免只输入空格被后端拦下。
  *
- * 5MB 上限：与识别模块同一套校验（validateImageFile），
- * 后端 router/api.py 未限制请求体大小，必须前端把关。
+ * 5MB 上限：与识别模块同一套校验（validateImageFile），后端未限制请求体大小。
+ *
+ * 本次视觉优化：
+ *   - 表单字段用统一的 label / input / 文件卡片结构，与识别模块保持一致的心智模型；
+ *   - 右侧"须知"由长段落改为带序号的清单，扫读成本更低；
+ *   - 录入成功后的记录信息用 .kv 键值行呈现，不再是一块绿色卡片。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 
-import { ACCEPT_ATTR, MAX_UPLOAD_SIZE_LABEL, formatFileSize, validateImageFile } from '../api/client'
+import AppIcon from '../components/AppIcon.vue'
+import { ACCEPT_ATTR, MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_LABEL, formatFileSize, validateImageFile } from '../api/client'
 import { registerFace } from '../api/face'
 
 /**
- * 向父组件（App.vue）广播「录入成功」事件。
- * App.vue 收到后可以把导航切到「特征库」，让用户立刻看到刚录入的人。
+ * 向父组件（App.vue）广播：
+ *   - emit('registered', { recordId, name })  录入成功，仅通知
+ *   - emit('registered', null)               用户点了「去特征库查看」
  */
 const emit = defineEmits(['registered'])
 
 /* ===================== 状态 ===================== */
 
-/** 姓名输入（v-model.trim 已去掉首尾空格） */
+/** 姓名（v-model.trim 已去掉首尾空格） */
 const name = ref('')
-/** 选中的图片文件 */
+/** 选中的图片 */
 const file = ref(null)
-/** 预览 URL，用完需 revoke */
+/** 预览 URL */
 const previewUrl = ref('')
 /** 错误提示 */
 const errorMsg = ref('')
 /** 成功提示 */
 const successMsg = ref('')
-/** 最近一次录入成功的记录信息 { recordId, name } */
+/** 最近一次录入成功的记录 */
 const lastRegistered = ref(null)
 /** 提交中 */
 const submitting = ref(false)
-/** 拖拽悬停高亮 */
+/** 拖拽悬停 */
 const dragOver = ref(false)
 
-/** 隐藏的原生 file input */
 const fileInputRef = ref(null)
 
 /* ===================== 派生状态 ===================== */
 
-/** 姓名是否合法：去掉空格后非空 */
+/** 姓名是否合法 */
 const nameValid = computed(() => name.value.trim().length > 0)
 
-/** 表单是否可提交 */
+/** 是否可提交 */
 const canSubmit = computed(() => nameValid.value && Boolean(file.value) && !submitting.value)
 
 /** 文件大小文案 */
@@ -114,7 +118,6 @@ function revokePreview() {
   }
 }
 
-/** 移除已选图片 */
 function clearFile() {
   revokePreview()
   file.value = null
@@ -123,32 +126,29 @@ function clearFile() {
 /* ===================== 提交录入 ===================== */
 
 /**
- * 提交录入请求。
- * 成功 / 失败都只更新页面提示，不打断用户；失败时保留已选图片和姓名，
- * 用户改一下就能重试（例如提示"已存在"时去特征库删掉再回来）。
+ * 提交录入。成功 / 失败都只更新页面提示；
+ * 失败时保留已选图片和姓名，用户改一下就能重试。
  */
 async function submit() {
   if (submitting.value) return
 
-  // 1. 姓名校验
   const trimmedName = name.value.trim()
   if (!trimmedName) {
     errorMsg.value = '请填写姓名（身份标签）'
     return
   }
 
-  // 2. 图片存在性 + 体积二次校验
   if (!file.value) {
     errorMsg.value = '请选择一张人脸图片'
     return
   }
+
   const sizeErr = validateImageFile(file.value)
   if (sizeErr) {
     errorMsg.value = sizeErr
     return
   }
 
-  // 3. 发请求
   submitting.value = true
   errorMsg.value = ''
   successMsg.value = ''
@@ -157,21 +157,19 @@ async function submit() {
   try {
     const res = await registerFace(file.value, trimmedName)
     lastRegistered.value = res
-    successMsg.value = `「${res.name}」录入成功${res.recordId ? `，记录 ID：${res.recordId}` : ''}`
-    // 清空表单，方便连续录入下一个人；成功提示保留在页面上
+    successMsg.value = `「${res.name}」录入成功`
+    // 清空表单方便连续录入下一个人；成功提示与记录卡保留
     name.value = ''
     clearFile()
-    // 通知父组件（可用于自动跳到特征库）
     emit('registered', res)
   } catch (e) {
-    // 422 未检测到人脸 / 409 同名已存在 / 其它网络错误，client.js 已转成中文
     errorMsg.value = e.message || '录入失败，请稍后重试'
   } finally {
     submitting.value = false
   }
 }
 
-/** 跳转到特征库（由父组件切换导航） */
+/** 跳转特征库（由父组件切换导航） */
 function goFeatures() {
   emit('registered', null)
 }
@@ -185,7 +183,10 @@ onBeforeUnmount(revokePreview)
     <section class="card">
       <div class="card-head">
         <div>
-          <div class="card-title"><span aria-hidden="true">👤</span> 录入人脸</div>
+          <div class="card-title">
+            <AppIcon name="user-plus" :size="17" />
+            录入人脸
+          </div>
           <p class="card-desc">
             上传一张正脸图片并绑定姓名，后端会提取 512 维特征写入 SQLite 特征库
           </p>
@@ -196,7 +197,7 @@ onBeforeUnmount(revokePreview)
       <div class="field">
         <label class="label" for="person-name">
           姓名 / 身份标签
-          <span class="optional">入库后会作为识别结果展示</span>
+          <span class="optional">入库后作为识别结果展示</span>
         </label>
         <input
           id="person-name"
@@ -208,16 +209,14 @@ onBeforeUnmount(revokePreview)
           :disabled="submitting"
           @keydown.enter.prevent="canSubmit && submit()"
         />
-        <p class="hint">
-          特征库中姓名唯一：同一个人重复录入会提示「已存在」，需先在特征库删除旧记录。
-        </p>
+        <p class="hint">姓名在特征库中唯一，重复录入会提示已存在，需先删除旧记录。</p>
       </div>
 
       <!-- 图片 -->
       <div class="field">
         <label class="label">
           人脸图片
-          <span class="optional">jpg / png / bmp / webp，≤ {{ MAX_UPLOAD_SIZE_LABEL }}</span>
+          <span class="optional">≤ {{ MAX_UPLOAD_SIZE_LABEL }}（{{ MAX_UPLOAD_SIZE.toLocaleString() }} 字节）</span>
         </label>
 
         <input
@@ -242,122 +241,126 @@ onBeforeUnmount(revokePreview)
           @dragleave.prevent="onDragLeave"
           @drop="onDrop"
         >
-          <div class="dropzone-icon" aria-hidden="true">🙂</div>
-          <p class="dropzone-title">点击选择人脸图片，或拖到这里</p>
-          <p class="dropzone-hint">建议正脸、光线充足、画面中只有一张脸</p>
+          <span class="dropzone-icon"><AppIcon name="user-plus" :size="20" /></span>
+          <p class="dropzone-title">点击选择人脸图片</p>
+          <p class="dropzone-sub">或把图片拖到这里 · 建议正脸、光线充足、单人</p>
         </div>
 
-        <div v-else class="picked">
-          <div class="picked-main">
-            <img :src="previewUrl" alt="待录入人脸预览" class="thumb" />
-            <div class="picked-info">
-              <span class="picked-name" :title="file.name">{{ file.name }}</span>
-              <span class="badge badge-neutral">{{ sizeText }}</span>
-              <button type="button" class="link-btn" @click="openPicker">重新选择</button>
-            </div>
+        <div v-else class="file-card">
+          <img :src="previewUrl" alt="待录入人脸预览" class="thumb" />
+          <div class="file-info">
+            <p class="file-name" :title="file.name">{{ file.name }}</p>
+            <p class="file-meta">{{ sizeText }}</p>
           </div>
-          <button type="button" class="btn btn-sm btn-danger" @click="clearFile">移除</button>
+          <button type="button" class="icon-btn" title="重新选择" aria-label="重新选择" @click="openPicker">
+            <AppIcon name="refresh" :size="15" />
+          </button>
+          <button type="button" class="icon-btn icon-btn-danger" title="移除" aria-label="移除" @click="clearFile">
+            <AppIcon name="x" :size="15" />
+          </button>
         </div>
       </div>
 
-      <button type="button" class="btn btn-primary btn-block submit-btn" :disabled="!canSubmit" @click="submit">
+      <button type="button" class="btn btn-primary btn-block cta" :disabled="!canSubmit" @click="submit">
         <span v-if="submitting" class="spinner" aria-hidden="true"></span>
-        <span v-else aria-hidden="true">💾</span>
+        <AppIcon v-else name="check" :size="16" :stroke-width="2.1" />
         {{ submitting ? '录入中，正在提取特征…' : '提交录入' }}
       </button>
 
-      <div v-if="errorMsg" class="alert alert-err" role="alert">
-        <span aria-hidden="true">⚠️</span>
+      <div v-if="errorMsg" class="alert alert-err alert-gap" role="alert">
+        <AppIcon name="alert" :size="15" />
         <span>{{ errorMsg }}</span>
       </div>
 
-      <div v-if="successMsg" class="alert alert-ok" role="status">
-        <span aria-hidden="true">✅</span>
+      <div v-if="successMsg" class="alert alert-ok alert-gap" role="status">
+        <AppIcon name="check" :size="15" :stroke-width="2.2" />
         <div>
           <p>{{ successMsg }}</p>
           <button type="button" class="link-btn go-link" @click="goFeatures">
-            去特征库查看 →
+            去特征库查看
+            <AppIcon name="arrow-right" :size="13" />
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ==================== 右：录入须知 ==================== -->
+    <!-- ==================== 右：须知与结果 ==================== -->
     <section class="card">
       <div class="card-head">
-        <div class="card-title"><span aria-hidden="true">📌</span> 录入须知</div>
+        <div class="card-title">
+          <AppIcon name="info" :size="17" />
+          录入须知
+        </div>
       </div>
 
       <ol class="tips">
-        <li>
-          <strong>一人一档：</strong>后端按姓名判重，同名再次提交会返回 409。
-          要更新某人特征，请先到「特征库」删除该姓名下的记录。
+        <li class="tip">
+          <span class="tip-num" aria-hidden="true">1</span>
+          <div>
+            <p class="tip-title">一人一档</p>
+            <p class="tip-text">按姓名判重，同名再次提交会返回 409。更新特征请先在「特征库」删除该姓名。</p>
+          </div>
         </li>
-        <li>
-          <strong>只取最大人脸：</strong>图片中有多张脸时，后端只录入面积最大的那一张，
-          所以请尽量上传单人照，避免录错人。
+        <li class="tip">
+          <span class="tip-num" aria-hidden="true">2</span>
+          <div>
+            <p class="tip-title">只取最大人脸</p>
+            <p class="tip-text">图片中有多张脸时，后端只录入面积最大的那一张，请尽量使用单人照。</p>
+          </div>
         </li>
-        <li>
-          <strong>图片质量：</strong>Haar 级联检测对侧脸、遮挡、强逆光、人脸过小都较敏感，
-          正脸清晰照的识别成功率明显更高。
+        <li class="tip">
+          <span class="tip-num" aria-hidden="true">3</span>
+          <div>
+            <p class="tip-title">图片质量</p>
+            <p class="tip-text">Haar 级联对侧脸、遮挡、强逆光、人脸过小都较敏感，正脸清晰照成功率最高。</p>
+          </div>
         </li>
-        <li>
-          <strong>体积限制：</strong>单张图片不得超过 {{ MAX_UPLOAD_SIZE_LABEL }}，
-          超限时前端会在选择文件的瞬间拦下，不会发起请求。
-        </li>
-        <li>
-          <strong>录入 ≠ 立即生效的同步感知：</strong>特征写入 SQLite 后，
-          下一次识别请求就会带上它（后端每次识别都从库里读全量特征）。
+        <li class="tip">
+          <span class="tip-num" aria-hidden="true">4</span>
+          <div>
+            <p class="tip-title">体积限制</p>
+            <p class="tip-text">单张不得超过 {{ MAX_UPLOAD_SIZE_LABEL }}，超限会在选择文件的瞬间被前端拦下。</p>
+          </div>
         </li>
       </ol>
 
-      <!-- 成功后的记录信息卡片 -->
-      <div v-if="lastRegistered" class="record-card">
-        <div class="record-row">
-          <span class="text-muted">姓名</span>
-          <strong>{{ lastRegistered.name }}</strong>
+      <!-- 成功后展示本次写入的记录 -->
+      <template v-if="lastRegistered">
+        <hr class="card-divider" />
+        <div class="record">
+          <div class="kv">
+            <span class="kv-key">姓名</span>
+            <span class="kv-val">{{ lastRegistered.name }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-key">记录 ID</span>
+            <span class="kv-val mono">{{ lastRegistered.recordId ?? '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-key">特征维度</span>
+            <span class="kv-val mono">512</span>
+          </div>
         </div>
-        <div class="record-row">
-          <span class="text-muted">记录 ID</span>
-          <span class="mono">{{ lastRegistered.recordId ?? '—' }}</span>
-        </div>
-        <div class="record-row">
-          <span class="text-muted">特征维度</span>
-          <span class="mono">512</span>
-        </div>
-      </div>
+      </template>
     </section>
   </div>
 </template>
 
 <style scoped>
-/* 隐藏原生 input */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* ---------- 放置区 ---------- */
 .dropzone {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 30px 18px;
-  border: 2px dashed var(--line-strong);
-  border-radius: var(--radius);
-  background: #fbfcfe;
+  gap: 6px;
+  padding: 28px 18px;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: #fcfcfd;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+  transition: border-color var(--t), background var(--t), transform 0.1s;
 }
 
 .dropzone:hover,
@@ -369,123 +372,150 @@ onBeforeUnmount(revokePreview)
 
 .dropzone.over {
   border-color: var(--brand);
-  background: #e8edff;
-  transform: scale(1.01);
+  background: #e9edff;
+  transform: scale(1.005);
 }
 
 .dropzone-icon {
-  font-size: 26px;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--brand);
+  box-shadow: var(--shadow-sm);
 }
 
 .dropzone-title {
   font-weight: 600;
+  color: var(--ink);
 }
 
-.dropzone-hint {
+.dropzone-sub {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 /* ---------- 已选文件 ---------- */
-.picked {
+.file-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   padding: 10px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: #fbfcfe;
+  border-radius: var(--r-md);
+  background: #fcfcfd;
 }
 
-.picked-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-/* 方形缩略图：object-fit: cover 保证不同比例都不变形 */
 .thumb {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   object-fit: cover;
   background: #eef1f6;
   flex: none;
 }
 
-.picked-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+.file-info {
+  flex: 1;
   min-width: 0;
 }
 
-.picked-name {
-  max-width: 100%;
+.file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 550;
+}
+
+.file-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- 按钮与提示 ---------- */
+.cta {
+  height: 42px;
+  margin-top: 18px;
+}
+
+.alert-gap {
+  margin-top: 12px;
 }
 
 .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   padding: 0;
   border: none;
   background: none;
   color: var(--brand);
-  font-size: 12px;
-  text-decoration: underline;
-}
-
-.submit-btn {
-  margin-top: 16px;
-  height: 42px;
-}
-
-.go-link {
-  margin-top: 4px;
   font-size: 12.5px;
 }
 
-/* ---------- 须知 ---------- */
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.go-link {
+  margin-top: 3px;
+}
+
+/* ---------- 须知清单 ---------- */
 .tips {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   margin: 0;
-  padding-left: 20px;
-  color: var(--ink-soft);
+  padding: 0;
+  list-style: none;
+}
+
+.tip {
+  display: flex;
+  gap: 10px;
+}
+
+/* 序号放在圆形色块里，形成清楚的阅读节奏 */
+.tip-num {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-size: 11.5px;
+  font-weight: 700;
+  flex: none;
+}
+
+.tip-title {
   font-size: 13px;
-}
-
-.tips li + li {
-  margin-top: 9px;
-}
-
-.tips strong {
+  font-weight: 600;
   color: var(--ink);
 }
 
-/* ---------- 成功后的记录卡 ---------- */
-.record-card {
-  margin-top: 16px;
-  padding: 12px;
-  border: 1px solid #bbf7d0;
-  border-radius: var(--radius-sm);
+.tip-text {
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* ---------- 成功后的记录 ---------- */
+.record {
+  padding: 4px 12px;
+  border: 1px solid var(--ok-line);
+  border-radius: var(--r-md);
   background: var(--ok-soft);
-  font-size: 13px;
-}
-
-.record-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.record-row + .record-row {
-  margin-top: 4px;
 }
 </style>
