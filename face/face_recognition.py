@@ -9,7 +9,7 @@ import torch
 import numpy as np
 from facenet_pytorch import InceptionResnetV1
 from sklearn.metrics.pairwise import cosine_similarity
-from db_utils import face_db
+from ..core.db_utils import face_db
 
 class FaceRecognition:
     # 类变量：模型实例全局复用，避免重复加载（模型加载很耗时）
