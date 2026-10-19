@@ -13,7 +13,14 @@ class FaceFeatureDB:
         if db_path is None:
             db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'face_features.db')
         self.db_path = db_path
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        # ↑ check_same_thread=False 是 FastAPI 接入所必需的：
+        #   FastAPI 会把同步路由函数（def 而非 async def）交给 anyio 线程池执行，
+        #   线程与创建连接的线程不同；sqlite3 默认 check_same_thread=True，
+        #   会在 /api/features、/api/register 等接口里抛
+        #   "SQLite objects created in a thread can only be used in that same thread"。
+        #   本项目对数据库的访问都是「一个请求一次短事务」，不存在并发写同一连接
+        #   导致的交错问题，因此关闭该检查是安全且最小的改动。
         self._create_table()
 
     def _create_table(self):
