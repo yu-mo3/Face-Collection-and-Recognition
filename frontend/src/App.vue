@@ -16,6 +16,7 @@ import { computed, ref } from 'vue'
 import UploadRecognize from './views/UploadRecognize.vue'
 import CameraRecognize from './views/CameraRecognize.vue'
 import RegisterFace from './views/RegisterFace.vue'
+import FeatureLibrary from './views/FeatureLibrary.vue'
 
 /**
  * 模块清单
@@ -41,6 +42,7 @@ const viewMap = {
   upload: UploadRecognize,
   camera: CameraRecognize,
   register: RegisterFace,
+  features: FeatureLibrary,
 }
 
 // 当前选中的模块，默认第一个「图片识别」
