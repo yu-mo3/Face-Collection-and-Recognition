@@ -15,6 +15,7 @@ import { computed, ref } from 'vue'
 // 业务视图组件：每个模块一个文件，互不耦合
 import UploadRecognize from './views/UploadRecognize.vue'
 import CameraRecognize from './views/CameraRecognize.vue'
+import RegisterFace from './views/RegisterFace.vue'
 
 /**
  * 模块清单
@@ -39,6 +40,7 @@ const tabs = [
 const viewMap = {
   upload: UploadRecognize,
   camera: CameraRecognize,
+  register: RegisterFace,
 }
 
 // 当前选中的模块，默认第一个「图片识别」
@@ -57,6 +59,20 @@ const activeView = computed(() => viewMap[activeTab.value] || null)
 function switchTab(key) {
   if (activeTab.value !== key) {
     activeTab.value = key
+  }
+}
+
+/**
+ * 「人脸录入」模块的事件回调。
+ * RegisterFace 会用 registered 事件广播两件事：
+ *   - payload 为对象：录入成功（附 { recordId, name }），这里只做通知，不切页，
+ *     否则用户还没来得及看清成功提示就被跳走了；
+ *   - payload 为 null：用户点了「去特征库查看」，此时才切换导航到特征库。
+ * @param {{recordId:number,name:string}|null} payload
+ */
+function onRegistered(payload) {
+  if (payload === null) {
+    switchTab('features')
   }
 }
 </script>
@@ -113,7 +129,7 @@ function switchTab(key) {
         :key="activeTab" 保证切换模块时组件被销毁重建：
         摄像头模块必须在离开时释放 MediaStream，重建语义最不容易出错。
       -->
-      <component :is="activeView" v-if="activeView" :key="activeTab" />
+      <component :is="activeView" v-if="activeView" :key="activeTab" @registered="onRegistered" />
 
       <!-- 尚未接入的模块占位 -->
       <section v-else class="card">
