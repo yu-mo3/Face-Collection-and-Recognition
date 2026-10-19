@@ -4,21 +4,55 @@
 """
 
 import os
+import shutil
 import cv2
 import numpy as np
 
 
 class FaceDetection:
     def __init__(self, model_name='haarcascade_frontalface_alt2.xml'):
-        # 加载 Haar 预训练模型
         if not hasattr(cv2, 'CascadeClassifier'):
             raise RuntimeError(
                 "当前 opencv-python 版本不支持 Haar 级联检测（5.x 已移除）。\n"
                 "请降级安装 4.x 版本：pip install \"opencv-python>=4.8,<5\""
             )
-        self.face_engine = cv2.CascadeClassifier(cv2.data.haarcascades + model_name)
+
+        model_path = self._resolve_model_path(model_name)
+        self.face_engine = cv2.CascadeClassifier(model_path)
+
         if self.face_engine.empty():
-            raise ValueError(f"无法加载人脸检测模型：{model_name}")
+            raise ValueError(f"无法加载人脸检测模型：{model_path}")
+
+    @staticmethod
+    def _resolve_model_path(model_name):
+        """
+        解决 Windows 中文路径下 OpenCV 无法打开模型文件的问题。
+        策略：路径含非 ASCII 字符时，把模型复制到纯英文目录再加载。
+        """
+        src_path = os.path.join(cv2.data.haarcascades, model_name)
+
+        # 1. 文件必须存在（不存在说明 OpenCV 安装不完整，或你还没下载）
+        if not os.path.isfile(src_path):
+            raise FileNotFoundError(
+                f"模型文件不存在：{src_path}\n"
+                f"请下载 {model_name} 并放到该目录，或修改 model_name 指向你存放模型的路径。\n"
+                f"下载地址：https://raw.githubusercontent.com/opencv/opencv/4.x/data/haarcascades/{model_name}"
+            )
+
+        # 2. 路径是纯 ASCII，直接返回
+        if src_path.isascii():
+            return src_path
+
+        # 3. 路径含中文 → 复制到纯英文目录
+        safe_dir = r"C:\opencv_models"
+        os.makedirs(safe_dir, exist_ok=True)
+        safe_path = os.path.join(safe_dir, model_name)
+
+        if not os.path.exists(safe_path) or os.path.getsize(safe_path) == 0:
+            shutil.copy2(src_path, safe_path)  # Python 层支持中文，复制没问题
+            print(f"检测到中文路径，模型已复制到：{safe_path}")
+
+        return safe_path
         
     
     @staticmethod
