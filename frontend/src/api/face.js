@@ -63,6 +63,24 @@ function toBoxNumbers(raw) {
 }
 
 /**
+ * 把后端字段安全地转成「数字或 null」。
+ *
+ * 特意不用 Number.isFinite(Number(v)) 这种写法：
+ *   Number(null) === 0、Number('') === 0，两者都是有限数，
+ *   于是「后端明确返回 similarity: null（未匹配到人）」会被误转成 0，
+ *   界面上就会显示成相似度 0.0000 而不是「—」。
+ * 这里显式先把 null / undefined / 空串挡掉，再做数值转换。
+ *
+ * @param {*} value 后端原始值
+ * @returns {number|null} 合法数字或 null
+ */
+function toNullableNumber(value) {
+  if (value === null || value === undefined || value === '') return null
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+/**
  * 归一化识别结果列表。
  * 后端每张人脸产生一条：
  *   { bbox, name: string|null, similarity: number|null }
@@ -75,11 +93,10 @@ export function normalizeRecognizePayload(payload) {
   const rawList = Array.isArray(payload?.results) ? payload.results : []
   const results = rawList.map((item) => {
     const name = typeof item?.name === 'string' && item.name.trim() ? item.name : null
-    const similarity = Number.isFinite(Number(item?.similarity)) ? Number(item.similarity) : null
     return {
       bbox: normalizeBbox(item?.bbox),
       name,
-      similarity,
+      similarity: toNullableNumber(item?.similarity),
       // matched 只表示「是否被判定为某个已录入人员」，与检测是否成功无关
       matched: Boolean(name),
     }
@@ -176,7 +193,7 @@ export async function registerFace(file, name) {
   const payload = await http.post('/api/register', form)
 
   return {
-    recordId: Number(payload?.record_id) || null,
+    recordId: toNullableNumber(payload?.record_id),
     name: payload?.name ?? name,
   }
 }
@@ -202,7 +219,7 @@ export async function listFeatures() {
 
   return {
     // 以服务端 count 为准；若缺失则用数组长度兜底
-    count: Number.isFinite(Number(payload?.count)) ? Number(payload.count) : items.length,
+    count: toNullableNumber(payload?.count) ?? items.length,
     items,
   }
 }
@@ -228,7 +245,7 @@ export async function deleteFeature(name) {
   const safeName = encodeURIComponent(String(name ?? '').trim())
   const payload = await http.delete(`/api/features/${safeName}`)
   return {
-    deleted: Number(payload?.deleted) || 0,
+    deleted: toNullableNumber(payload?.deleted) ?? 0,
     name: payload?.name ?? name,
   }
 }
