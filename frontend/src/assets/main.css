@@ -7,17 +7,22 @@
  *   - 模块独有样式（人脸框叠加、取景框、缩略图等）留在各自 .vue 的 scoped 块，
  *     避免污染全局。
  *   - 颜色、圆角、阴影、间距全部走令牌，换肤/加深只改一处。
+ *
+ * 本次调整：
+ *   1. 内容区加宽（max-width 1160 → 1520，左右内边距改用 clamp 跟随视口），
+ *      消除大屏两侧过大的空白；
+ *   2. 字号整体上调一档（正文 14 → 15px，相关辅助文字同步上调），
+ *      避免"小字配大留白"的松散感。
  */
 
 /* ========================= 设计令牌 ========================= */
 :root {
-  /* 背景：接近中性的浅灰蓝，仅用两团极淡的光晕带出层次，
-     不再用大面积紫色渐变，避免整页发粉、与内容抢注意力 */
+  /* 背景：接近中性的浅灰蓝，仅用两团极淡的光晕带出层次 */
   --bg: #f6f7f9;
-  --bg-glow-1: radial-gradient(880px 460px at 8% -12%, #e7edfb 0%, transparent 60%);
-  --bg-glow-2: radial-gradient(720px 420px at 108% -8%, #e8f4ee 0%, transparent 58%);
+  --bg-glow-1: radial-gradient(1000px 520px at 6% -12%, #e7edfb 0%, transparent 62%);
+  --bg-glow-2: radial-gradient(820px 460px at 104% -8%, #e8f4ee 0%, transparent 58%);
 
-  /* 中性色阶：文字只用三档，层级靠字号/字重区分，不再到处撒灰字 */
+  /* 中性色阶：文字只用三档，层级靠字号/字重区分 */
   --ink: #111827;
   --ink-soft: #374151;
   --muted: #6b7280;
@@ -27,7 +32,7 @@
   --line: #ecedf1;
   --line-strong: #d8dce2;
 
-  /* 主色：靛蓝，比原来的亮蓝更沉稳；--brand-soft 用于选中/强调底色 */
+  /* 主色：靛蓝；--brand-soft 用于选中/强调底色 */
   --brand: #4f46e5;
   --brand-dark: #4338ca;
   --brand-soft: #eef2ff;
@@ -44,20 +49,19 @@
   --err-soft: #fef2f2;
   --err-line: #fecaca;
 
-  /* 圆角：卡片 14，控件 10，小元素 8 —— 只保留三档 */
+  /* 圆角：卡片 14，控件 10，小元素 8 */
   --r-lg: 14px;
   --r-md: 10px;
   --r-sm: 8px;
 
-  /* 阴影：极轻，靠描边+留白撑起层次，避免卡片"浮起来" */
+  /* 阴影：极轻，靠描边+留白撑起层次 */
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 24px -18px rgba(16, 24, 40, 0.16);
-  --shadow-hover: 0 1px 2px rgba(16, 24, 40, 0.05), 0 14px 30px -18px rgba(16, 24, 40, 0.22);
 
-  /* 焦点环：键盘导航可见，鼠标点击不刺眼 */
+  /* 焦点环 */
   --ring: 0 0 0 3px var(--brand-ring);
 
-  /* 动效时长统一 */
+  /* 动效时长 */
   --t: 0.16s;
 }
 
@@ -81,9 +85,10 @@ body {
   background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--ink);
+  /* 正文基准字号 15px：比之前的 14px 更大，配合更宽的内容区更易读 */
   font-family: 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB',
     system-ui, -apple-system, sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -128,7 +133,7 @@ code {
   color: var(--ink-soft);
 }
 
-/* 全局键盘焦点：只对用键盘的人显示，鼠标点击不出现 */
+/* 全局键盘焦点：只对用键盘的人显示 */
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
@@ -151,25 +156,26 @@ code {
 }
 
 /* ========================= 布局 ========================= */
+/*
+  内容区宽度策略：
+    - 上限抬到 1520px，1440/1920 的大屏下两侧不再各留 140px+ 的空白；
+    - 左右内边距用 clamp 跟随视口，小屏也不会贴边；
+    - 中间留白只在超出上限的超宽屏上出现。
+*/
 .app-shell {
-  max-width: 1160px;
+  width: 100%;
+  max-width: 1520px;
   margin: 0 auto;
-  padding: 26px 20px 56px;
-}
-
-/* 手机：左右留白收紧，把宽度还给内容 */
-@media (max-width: 640px) {
-  .app-shell {
-    padding: 18px 14px 40px;
-  }
+  padding: 24px clamp(18px, 2.4vw, 40px) 44px;
 }
 
 /* 双栏：左操作 / 右结果，窄屏自动堆叠。用 minmax(0,1fr) 防止长内容撑破栅格 */
 .split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+  gap: 18px;
+  /* 两列等高：否则一高一矮会在矮卡那一侧留下大块明显空白 */
+  align-items: stretch;
 }
 
 @media (max-width: 920px) {
@@ -178,10 +184,33 @@ code {
   }
 }
 
+/*
+  配合等高双栏使用的两个小工具：
+  .card-stretch —— 让卡片变成纵向弹性容器；
+  .card-fill    —— 卡片内"可伸缩的内容区"，占满头部以下的剩余高度，
+                   这样空态/加载态就能在剩余空间里垂直居中，
+                   而不是挤在卡片顶部、下方留一条空白。
+*/
+.card-stretch {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-fill {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 空态/加载态在可伸缩区里撑满并居中 */
+.card-fill > .empty,
+.card-fill > .loading {
+  flex: 1 1 auto;
+}
+
 /* ========================= 卡片 ========================= */
-/* 卡片：白底 + 极淡描边 + 轻投影，靠留白而不是重阴影分层 */
 .card {
-  padding: 20px;
+  padding: 22px;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: #fff;
@@ -200,12 +229,12 @@ code {
   margin-bottom: 16px;
 }
 
-/* 卡片标题 = 图标 + 文字，图标用统一的 --brand 色，避免彩色 emoji 打架 */
+/* 卡片标题 = 图标 + 文字，图标统一用主色 */
 .card-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -218,11 +247,11 @@ code {
 .card-desc {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.55;
 }
 
-/* 卡片内分区：用一条极淡的上边框做切割，比嵌套卡片更干净 */
+/* 卡片内分区：用一条极淡的分割线 */
 .card-divider {
   height: 1px;
   margin: 16px 0;
@@ -236,13 +265,13 @@ code {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  height: 38px;
-  padding: 0 15px;
+  height: 40px;
+  padding: 0 16px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   background: #fff;
   color: var(--ink-soft);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   transition: background var(--t), border-color var(--t), color var(--t), box-shadow var(--t),
@@ -268,6 +297,21 @@ code {
   cursor: not-allowed;
 }
 
+/* 主按钮：实心主色 + 极轻投影，页面上只有一个，视觉锚点明确 */
+.btn-primary {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.24), 0 6px 16px -12px rgba(79, 70, 229, 0.6);
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: var(--brand-dark);
+  background: var(--brand-dark);
+  color: #fff;
+}
+
 /* 主按钮禁用时不能只是"淡紫色" —— 那看起来像可点的浅色按钮。
    改成中性灰底灰字，一眼就知道现在点不动 */
 .btn-primary:disabled {
@@ -278,22 +322,7 @@ code {
   opacity: 1;
 }
 
-/* 主按钮：实心主色 + 极轻投影，页面上只有一个，视觉锚点明确 */
-.btn-primary {
-  border-color: var(--brand);
-  background: var(--brand);
-  color: #fff;
-  font-weight: 550;
-  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.24), 0 6px 16px -12px rgba(79, 70, 229, 0.6);
-}
-
-.btn-primary:hover:not(:disabled) {
-  border-color: var(--brand-dark);
-  background: var(--brand-dark);
-  color: #fff;
-}
-
-/* 幽灵按钮：用于"恢复默认""去特征库"这类次要动作 */
+/* 幽灵按钮：用于"恢复默认""清空"这类次要动作 */
 .btn-ghost {
   border-color: transparent;
   background: transparent;
@@ -320,10 +349,10 @@ code {
 }
 
 .btn-sm {
-  height: 31px;
+  height: 32px;
   padding: 0 11px;
   border-radius: var(--r-sm);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .btn-block {
@@ -334,8 +363,8 @@ code {
 .icon-btn {
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
@@ -361,7 +390,7 @@ code {
 
 /* ========================= 表单 ========================= */
 .field + .field {
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .label {
@@ -369,27 +398,27 @@ code {
   align-items: center;
   gap: 6px;
   margin-bottom: 7px;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--ink-soft);
 }
 
 .label .optional {
   color: var(--faint);
   font-weight: 400;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .input {
   width: 100%;
-  height: 38px;
+  height: 40px;
   padding: 0 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   background: #fff;
   color: var(--ink);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   transition: border-color var(--t), box-shadow var(--t);
 }
@@ -409,7 +438,7 @@ code {
   cursor: not-allowed;
 }
 
-/* 带前置图标的输入框：给图标留出左内边距 */
+/* 带前置图标的输入框 */
 .input-wrap {
   position: relative;
   display: flex;
@@ -424,10 +453,10 @@ code {
 }
 
 .input-wrap .input {
-  padding-left: 34px;
+  padding-left: 35px;
 }
 
-/* 搜索框去掉浏览器自带的清除按钮，避免与自定义样式冲突 */
+/* 搜索框去掉浏览器自带的清除按钮 */
 .input[type='search']::-webkit-search-cancel-button {
   -webkit-appearance: none;
 }
@@ -435,11 +464,11 @@ code {
 .hint {
   margin-top: 7px;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
-/* 滑块：统一轨道/滑块外观，浏览器之间的差异一并抹平 */
+/* 滑块：统一轨道/滑块外观 */
 .range {
   -webkit-appearance: none;
   appearance: none;
@@ -458,9 +487,9 @@ code {
 
 .range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  margin-top: -5.5px;
+  width: 17px;
+  height: 17px;
+  margin-top: -6px;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--brand);
@@ -484,23 +513,23 @@ code {
 }
 
 .range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--brand);
 }
 
-/* 数值徽标：滑块当前值、体积百分比等，等宽 + 主色，方便扫读 */
+/* 数值徽标：滑块当前值、体积百分比等 */
 .value-chip {
-  min-width: 52px;
+  min-width: 56px;
   padding: 2px 8px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: #f8f9fb;
   color: var(--brand-dark);
   font-family: 'Cascadia Code', Consolas, Monaco, monospace;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   text-align: center;
   flex: none;
@@ -514,13 +543,13 @@ code {
   padding: 10px 12px;
   border: 1px solid transparent;
   border-radius: var(--r-md);
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.55;
 }
 
 .alert .icon {
   flex: none;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .alert + .alert {
@@ -555,15 +584,15 @@ code {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .table th {
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--line);
   background: #fafbfc;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-align: left;
@@ -571,7 +600,7 @@ code {
 }
 
 .table td {
-  padding: 11px 12px;
+  padding: 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
@@ -595,7 +624,6 @@ code {
 /* 表格容器：窄屏时允许横向滚动，避免列被压扁或撑破卡片 */
 .table-wrap {
   overflow-x: auto;
-  /* 让滚动条不贴边，圆角处更干净 */
   border-radius: var(--r-sm);
 }
 
@@ -611,11 +639,11 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 9px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1.7;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
   white-space: nowrap;
 }
 
@@ -643,16 +671,16 @@ code {
   color: var(--muted);
 }
 
-/* 计数/元信息块：弱化成纯文字，不再每处都套胶囊 */
+/* 计数/元信息：纯文字形态 */
 .meta-text {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 /* ========================= 加载与空态 ========================= */
 .spinner {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
@@ -673,10 +701,10 @@ code {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 148px;
+  min-height: 152px;
   padding: 18px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 13.5px;
   text-align: center;
 }
 
@@ -684,12 +712,12 @@ code {
   flex-direction: row;
 }
 
-/* 空态图标放在浅色圆底里，比裸 emoji 更克制 */
+/* 空态图标放在浅色圆底里 */
 .empty-mark {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border: 1px solid var(--line);
   border-radius: 50%;
   background: #fafbfc;
@@ -698,8 +726,8 @@ code {
 
 .empty-title {
   color: var(--ink-soft);
-  font-weight: 550;
-  font-size: 13.5px;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 /* ========================= 键值行 ========================= */
@@ -708,8 +736,8 @@ code {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 0;
-  font-size: 13px;
+  padding: 8px 0;
+  font-size: 14px;
 }
 
 .kv + .kv {
@@ -723,7 +751,7 @@ code {
 
 .kv-val {
   color: var(--ink);
-  font-weight: 550;
+  font-weight: 600;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -754,13 +782,12 @@ code {
 }
 
 /* ========================= 统计块组 =========================
-   三个一组的关键数值（帧体积、分辨率、记录数…）。
-   用极淡底 + 描边包住，比一行裸文字更容易扫读。 */
+   三/四个一组的关键数值（帧体积、分辨率、记录数…）。 */
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  padding: 11px 13px;
+  gap: 12px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: #fbfbfd;
@@ -775,13 +802,13 @@ code {
 
 .stat-key {
   color: var(--faint);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .stat-val {
   color: var(--ink);
   font-family: 'Cascadia Code', Consolas, Monaco, monospace;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;

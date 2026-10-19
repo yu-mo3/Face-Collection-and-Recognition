@@ -3,18 +3,20 @@
  * App.vue —— 应用外壳
  * ---------------------------------------------------------------------------
  * 只做三件事，业务逻辑全部在 src/views/ 各模块里：
- *   1. 顶部标识区：品牌图标 + 系统名 + 一行技术栈说明 + 右侧能力标签；
+ *   1. 顶部标识区：品牌图标 + 系统名 + 右侧能力标签；
  *   2. 模块导航：分段式标签栏，activeTab 记录当前模块；
  *   3. 内容区：按 activeTab 渲染对应视图组件。
  *
- * 本次 UI 优化的三处结构性调整：
- *   - 去掉了内容区顶部重复的"模块名 + 说明"标题行：
- *     标签栏已经显示了模块名，每张卡片自己也有标题，
- *     三层重复信息会把页面压得很挤。模块说明改挂到标签的 title 上（悬停可见）。
- *   - 图标由 emoji 换成 AppIcon 内联 SVG，尺寸/颜色/描边统一。
+ * UI 约定：
+ *   - 顶部只保留"是什么"，不写技术栈/调用方式这类实现说明；
+ *   - 内容区宽度由 .app-shell 统一控制（大屏尽量铺满，减少两侧空白）。
+ *
+ * 其他结构性约定：
+ *   - 内容区顶部不重复"模块名 + 说明"：标签栏已显示模块名，每张卡片自己也有标题，
+ *     三层重复信息会把页面压得很挤。模块说明挂在标签 title 上（悬停可见）。
+ *   - 图标统一用 AppIcon 内联 SVG，尺寸/颜色/描边一致。
  *   - 标签与 URL hash 同步（#upload / #camera / #register / #features），
- *     刷新、分享链接都能停在同一个模块；用 replaceState 写入，
- *     不污染浏览器前进后退历史。
+ *     刷新、分享链接都能停在同一个模块；用 replaceState 写入，不污染前进后退历史。
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
@@ -127,9 +129,6 @@ onBeforeUnmount(() => {
         </div>
         <div class="identity-text">
           <h1 class="app-title">人脸采集与识别系统</h1>
-          <p class="app-subtitle">
-            Vue3 + Vite 前端 · FastAPI <code>/api</code> 接口 · 单张图片上限 5MB
-          </p>
         </div>
       </div>
 
@@ -172,10 +171,6 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </main>
-
-    <footer class="foot">
-      后端由 <code>app.py</code> 提供 /api 接口，前端仅通过 HTTP 调用
-    </footer>
   </div>
 </template>
 
@@ -213,22 +208,18 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+/* 标题：去掉了原来的技术栈说明副标题，字号相应放大，让它成为明确的页面标题 */
 .app-title {
-  font-size: 19px;
-  letter-spacing: -0.015em;
-}
-
-.app-subtitle {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 12.5px;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 /* 能力标签：纯文字 + 小圆点，不用胶囊包裹，降低视觉噪音 */
 .head-meta {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -237,7 +228,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -260,8 +251,8 @@ onBeforeUnmount(() => {
 .tabbar {
   display: flex;
   gap: 2px;
-  padding: 4px;
-  margin-bottom: 16px;
+  padding: 5px;
+  margin-bottom: 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.78);
@@ -279,14 +270,14 @@ onBeforeUnmount(() => {
 .tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 14px;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   transition: background var(--t), color var(--t), border-color var(--t), box-shadow var(--t);
@@ -311,14 +302,7 @@ onBeforeUnmount(() => {
   color: var(--brand);
 }
 
-/* ================= 页脚 ================= */
-.foot {
-  margin-top: 26px;
-  color: var(--faint);
-  font-size: 12px;
-  text-align: center;
-}
-
+/* ================= 响应式 ================= */
 /* 窄屏：能力标签换行到标题下方，避免挤压标题 */
 @media (max-width: 720px) {
   .app-head {
@@ -345,7 +329,7 @@ onBeforeUnmount(() => {
     min-width: 0;
     justify-content: center;
     padding: 0 8px;
-    font-size: 12.5px;
+    font-size: 13px;
     gap: 5px;
   }
 
@@ -364,7 +348,7 @@ onBeforeUnmount(() => {
 @media (max-width: 460px) {
   .tab {
     padding: 0 6px;
-    font-size: 12px;
+    font-size: 12.5px;
   }
 
   .tab .icon {
