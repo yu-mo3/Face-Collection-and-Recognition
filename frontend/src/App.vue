@@ -14,6 +14,7 @@ import { computed, ref } from 'vue'
 
 // 业务视图组件：每个模块一个文件，互不耦合
 import UploadRecognize from './views/UploadRecognize.vue'
+import CameraRecognize from './views/CameraRecognize.vue'
 
 /**
  * 模块清单
@@ -37,6 +38,7 @@ const tabs = [
  */
 const viewMap = {
   upload: UploadRecognize,
+  camera: CameraRecognize,
 }
 
 // 当前选中的模块，默认第一个「图片识别」
