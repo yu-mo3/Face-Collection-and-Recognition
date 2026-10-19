@@ -13,9 +13,9 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from .face.face_detection import FaceDetection
-from .face.face_recognition import FaceRecognition
-from .core.db_utils import face_db
+from face.face_detection import FaceDetection
+from face.face_recognition import FaceRecognition
+from core.db_utils import face_db
 
 # 工程根目录（所有输出文件基于此路径，换机器不用改代码）
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -229,7 +229,7 @@ def delete_face():
 
 if __name__ == '__main__':
     while True:
-        print("#" * 20 + " 人脸检测识别系统（实训版） " + "#" * 20)
+        print("#" * 20 + " 人脸检测识别系统 " + "#" * 20)
         print("1. 通过图片录入人脸")
         print("2. 通过摄像头录入人脸")
         print("3. 查看特征库")
