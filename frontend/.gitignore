@@ -1,0 +1,23 @@
+# ---------- 前端依赖与构建产物 ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# 本地 npm 缓存目录（沙箱环境把缓存指向工作区内，避免写系统 AppData）
+.npm-cache/
+
+# ---------- 本地环境变量（后端地址等，各人机器不同，不入库）----------
+.env
+.env.local
+.env.*.local
+
+# ---------- 编辑器 / 系统 ----------
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
